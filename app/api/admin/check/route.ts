@@ -31,6 +31,8 @@ export async function GET() {
       results[scope] =
         err === "invalid_client"
           ? "Keys inválidas (client_id o secret incorrectos)"
+          : err === "unauthorized_client"
+            ? "Keys reconocidas, pero Uber aún no habilita esta app para este scope"
           : err === "invalid_scope"
             ? "Keys válidas, pero Uber no habilitó este scope"
             : `Error: ${err}`;
