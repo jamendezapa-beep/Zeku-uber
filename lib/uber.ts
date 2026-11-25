@@ -4,8 +4,10 @@
 
 import { getJSON, setJSON } from "./db";
 
-const AUTH_URL = "https://auth.uber.com/oauth/v2/token";
-const API = "https://api.uber.com";
+// UBER_ENV=production usa los servidores reales; cualquier otro valor (o vacío) usa sandbox.
+const isProd = process.env.UBER_ENV === "production";
+const AUTH_URL = isProd ? "https://auth.uber.com/oauth/v2/token" : "https://sandbox-login.uber.com/oauth/v2/token";
+const API = isProd ? "https://api.uber.com" : "https://test-api.uber.com";
 
 export class UberError extends Error {
   constructor(public status: number, public body: unknown, message: string) {
