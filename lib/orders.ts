@@ -2,7 +2,8 @@ import { getJSON, listIds, pushId, setJSON } from "./db";
 
 export type OrderRecord = {
   id: string;
-  status: "NEW" | "ACCEPTED" | "DENIED" | "CANCELLED" | "ERROR";
+  status: "NEW" | "ACCEPTED" | "READY" | "DELIVERED" | "DENIED" | "CANCELLED" | "ERROR";
+  delivery?: string; // estado del repartidor que informa Uber
   received_at: string;
   updated_at: string;
   detail?: any; // respuesta completa de GET /v2/eats/order/{id}
@@ -46,5 +47,6 @@ export function summarize(o: OrderRecord) {
     total: total ?? "",
     received_at: o.received_at,
     error: o.error,
+    delivery: o.delivery ?? "",
   };
 }

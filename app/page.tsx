@@ -11,6 +11,7 @@ type Order = {
   total: string | number;
   received_at: string;
   error?: string;
+  delivery?: string;
 };
 
 const card: React.CSSProperties = { background: "#181b22", borderRadius: 12, padding: 16, marginBottom: 16 };
@@ -27,6 +28,8 @@ const btn = (bg: string): React.CSSProperties => ({
 const STATUS_COLOR: Record<string, string> = {
   NEW: "#f5a524",
   ACCEPTED: "#17c964",
+  READY: "#3b82f6",
+  DELIVERED: "#a3a3a3",
   DENIED: "#f31260",
   CANCELLED: "#888",
   ERROR: "#f31260",
@@ -134,6 +137,12 @@ export default function Panel() {
               {new Date(o.received_at).toLocaleString("es-CL")} {o.customer && `· ${o.customer}`} {o.total !== "" && `· ${o.total}`}
             </div>
             <div>{o.items.join(", ")}</div>
+            {o.delivery && <div style={{ color: "#aaa", fontSize: 13 }}>Repartidor: {o.delivery}</div>}
+            {o.status === "ACCEPTED" && (
+              <button style={btn("#2563eb")} onClick={() => run("Marcando listo", async () => { await api(`/api/admin/orders/${o.id}`, { method: "POST", body: JSON.stringify({ action: "ready" }) }); await loadOrders(); })}>
+                Listo para retiro
+              </button>
+            )}
             {o.error && <div style={{ color: "#f31260", fontSize: 13 }}>{o.error}</div>}
             {(o.status === "NEW" || o.status === "ERROR") && (
               <>

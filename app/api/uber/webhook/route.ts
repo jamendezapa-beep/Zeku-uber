@@ -58,6 +58,12 @@ export async function POST(req: NextRequest) {
       }
     } else if (type === "orders.cancel" && resourceId) {
       await updateOrder(resourceId, { status: "CANCELLED" });
+    } else if (type === "delivery.state_changed" && resourceId) {
+      const state: string = String(event.meta?.status ?? event.status ?? "").toUpperCase();
+      await updateOrder(resourceId, {
+        delivery: state,
+        ...(state === "COMPLETED" || state === "DELIVERED" ? { status: "DELIVERED" as const } : {}),
+      });
     } else if (type.startsWith("eats.report")) {
       await setJSON(`report:${eventId}`, { received_at: new Date().toISOString(), event });
       await pushId("reports", eventId, 100);

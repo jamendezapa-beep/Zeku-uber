@@ -105,6 +105,9 @@ export const acceptOrder = (orderId: string) =>
 export const denyOrder = (orderId: string, explanation: string, code = "STORE_CLOSED") =>
   uber("POST", `/v1/eats/orders/${orderId}/deny_pos_order`, { reason: { explanation, code } });
 
+/** Avisa a Uber que el pedido está preparado, para despachar al repartidor. */
+export const markOrderReady = (orderId: string) => uber("POST", `/v1/delivery/order/${orderId}/ready`, {});
+
 // ---------- Menú ----------
 export const uploadMenu = (menu: unknown) => uber("PUT", `/v2/eats/stores/${storeId()}/menus`, menu);
 export const fetchMenu = () => uber("GET", `/v2/eats/stores/${storeId()}/menus`);
