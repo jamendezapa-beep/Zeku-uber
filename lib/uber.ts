@@ -49,8 +49,8 @@ export async function requestToken(scope = process.env.UBER_SCOPES ?? "eats.stor
 
 async function getToken(): Promise<string> {
   if (cached && cached.expires_at > Date.now()) return cached.access_token;
-  const stored = await getJSON<Token>("uber:token");
-  if (stored && stored.expires_at > Date.now()) {
+  const stored = await getJSON<Token>("uber:token").catch(() => null);
+  if (stored && stored.access_token && stored.expires_at > Date.now()) {
     cached = stored;
     return stored.access_token;
   }
@@ -59,7 +59,7 @@ async function getToken(): Promise<string> {
   return cached.access_token;
 }
 
-export async function uber<T = any>(method: string, path: string, body?: unknown): Promise<T> {
+export async function uber<T = any>(method: string, path: string, body?: unknown, retried = false): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     method,
     headers: {
@@ -71,7 +71,16 @@ export async function uber<T = any>(method: string, path: string, body?: unknown
   });
   const text = await res.text();
   const data = text ? safeJSON(text) : null;
-  if (!res.ok) throw new UberError(res.status, data, `Uber ${method} ${path}: ${res.status}`);
+  if (res.status === 401 && !retried) {
+    // Token vencido o de otro entorno: se descarta y se reintenta una vez con uno nuevo.
+    cached = null;
+    await setJSON("uber:token", null, 1).catch(() => {});
+    return uber<T>(method, path, body, true);
+  }
+  if (!res.ok) {
+    const detail = typeof data === "string" ? data : JSON.stringify(data ?? "");
+    throw new UberError(res.status, data, `Uber ${method} ${path}: ${res.status} ${detail.slice(0, 300)}`);
+  }
   return data as T;
 }
 
