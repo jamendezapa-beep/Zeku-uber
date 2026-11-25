@@ -11,6 +11,23 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const raw = await req.text();
   if (!verifyUberSignature(raw, req.headers.get("x-uber-signature"))) {
+    // Se registra para poder diagnosticar desde el panel (sin guardar el cuerpo completo).
+    const id = `rechazado-${Date.now()}`;
+    let type = "";
+    try {
+      type = JSON.parse(raw).event_type ?? "";
+    } catch {}
+    await setJSON(
+      `event:${id}`,
+      {
+        received_at: new Date().toISOString(),
+        rejected: true,
+        reason: req.headers.get("x-uber-signature") ? "firma no coincide" : "sin firma",
+        event: { event_type: type },
+      },
+      60 * 60 * 24 * 7,
+    ).catch(() => {});
+    await pushId("events", id, 200).catch(() => {});
     return NextResponse.json({ error: "firma inválida" }, { status: 401 });
   }
 

@@ -48,6 +48,7 @@ export default function Panel() {
   const [check, setCheck] = useState<any>(null);
   const [store, setStore] = useState<any>(null);
   const [reports, setReports] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[] | null>(null);
   const today = new Date().toISOString().slice(0, 10);
   const [range, setRange] = useState({ start: today, end: today });
 
@@ -141,6 +142,21 @@ export default function Panel() {
                 </button>
               </>
             )}
+          </div>
+        ))}
+      </section>
+
+      <section style={card}>
+        <h2 style={{ fontSize: 18, marginTop: 0 }}>Avisos de Uber</h2>
+        <p style={{ color: "#aaa", marginTop: 0 }}>Todo lo que Uber ha enviado a Zeku, aunque haya sido rechazado.</p>
+        <button style={btn("#444")} onClick={() => run("Cargando avisos", async () => setEvents((await api("/api/admin/events")).events))}>
+          Ver avisos
+        </button>
+        {events && events.length === 0 && <p style={{ color: "#aaa" }}>Uber todavía no ha enviado nada a Zeku.</p>}
+        {events?.map((e, i) => (
+          <div key={i} style={{ fontSize: 14, marginTop: 8 }}>
+            {e.rejected ? "❌" : "✅"} {new Date(e.received_at).toLocaleString("es-CL")} · {e.type || "?"}
+            {e.rejected && <span style={{ color: "#f31260" }}> · rechazado: {e.reason}</span>}
           </div>
         ))}
       </section>
