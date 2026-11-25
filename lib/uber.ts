@@ -25,9 +25,13 @@ export const storeId = () => env("UBER_STORE_ID");
 
 type Token = { access_token: string; expires_at: number; scope: string };
 let cached: Token | null = null;
+// Clave nueva para descartar tokens antiguos guardados solo con eats.store.
+const TOKEN_KEY = "uber:token:v2";
 
 /** Pide un token nuevo (client_credentials). También sirve para validar las keys. */
-export async function requestToken(scope = process.env.UBER_SCOPES ?? "eats.store"): Promise<Token> {
+export const DEFAULT_SCOPES = "eats.store eats.order eats.store.status.write eats.report";
+
+export async function requestToken(scope = process.env.UBER_SCOPES || DEFAULT_SCOPES): Promise<Token> {
   const body = new URLSearchParams({
     client_id: env("UBER_CLIENT_ID"),
     client_secret: env("UBER_CLIENT_SECRET"),
@@ -49,13 +53,13 @@ export async function requestToken(scope = process.env.UBER_SCOPES ?? "eats.stor
 
 async function getToken(): Promise<string> {
   if (cached && cached.expires_at > Date.now()) return cached.access_token;
-  const stored = await getJSON<Token>("uber:token").catch(() => null);
+  const stored = await getJSON<Token>(TOKEN_KEY).catch(() => null);
   if (stored && stored.access_token && stored.expires_at > Date.now()) {
     cached = stored;
     return stored.access_token;
   }
   cached = await requestToken();
-  await setJSON("uber:token", cached, Math.floor((cached.expires_at - Date.now()) / 1000));
+  await setJSON(TOKEN_KEY, cached, Math.floor((cached.expires_at - Date.now()) / 1000));
   return cached.access_token;
 }
 
@@ -74,7 +78,7 @@ export async function uber<T = any>(method: string, path: string, body?: unknown
   if (res.status === 401 && !retried) {
     // Token vencido o de otro entorno: se descarta y se reintenta una vez con uno nuevo.
     cached = null;
-    await setJSON("uber:token", null, 1).catch(() => {});
+    await setJSON(TOKEN_KEY, null, 1).catch(() => {});
     return uber<T>(method, path, body, true);
   }
   if (!res.ok) {
