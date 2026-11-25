@@ -1,8 +1,11 @@
 // Almacenamiento mínimo sobre Upstash Redis (API REST, sin dependencias).
 // Sin KV configurado usa memoria: sirve para probar, pero en Vercel se pierde entre invocaciones.
 
-const url = process.env.KV_REST_API_URL;
-const token = process.env.KV_REST_API_TOKEN;
+// Acepta los nombres que crea Vercel según el prefijo elegido (KV_, STORAGE_ o UPSTASH_REDIS_).
+const url =
+  process.env.KV_REST_API_URL ?? process.env.STORAGE_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+const token =
+  process.env.KV_REST_API_TOKEN ?? process.env.STORAGE_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
 const mem = new Map<string, string>();
 const memLists = new Map<string, string[]>();
 
