@@ -96,6 +96,9 @@ export const denyOrder = (orderId: string, explanation: string, code = "STORE_CL
 export const uploadMenu = (menu: unknown) => uber("PUT", `/v2/eats/stores/${storeId()}/menus`, menu);
 export const fetchMenu = () => uber("GET", `/v2/eats/stores/${storeId()}/menus`);
 
+// ---------- Tiendas ligadas a la app ----------
+export const listStores = () => uber("GET", `/v1/eats/stores`);
+
 // ---------- Estado de tienda ----------
 export const getStoreStatus = () => uber("GET", `/v1/eats/store/${storeId()}/status`);
 

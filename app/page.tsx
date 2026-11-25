@@ -108,6 +108,9 @@ export default function Panel() {
         <button style={btn("#d97706")} onClick={() => run("Pausando 30 min", () => api("/api/admin/store", { method: "POST", body: JSON.stringify({ status: "PAUSED", minutes: 30 }) }))}>
           Pausar 30 min
         </button>
+        <button style={btn("#6d28d9")} onClick={() => run("Buscando tiendas", async () => setStore(await api("/api/admin/stores")))}>
+          Buscar mi Store ID
+        </button>
         {store && <pre style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>{JSON.stringify(store, null, 2)}</pre>}
       </section>
 
