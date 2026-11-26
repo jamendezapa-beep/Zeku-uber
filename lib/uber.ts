@@ -155,7 +155,8 @@ export function authorizeUrl(redirectUri: string, state: string) {
     redirect_uri: redirectUri,
     state,
   });
-  return `${AUTH_BASE}/oauth/v2/authorize?${q}`;
+  // UBER_AUTHORIZE_BASE permite probar otra URL de login si Uber indica una distinta para sandbox.
+  return `${process.env.UBER_AUTHORIZE_BASE || AUTH_BASE}/oauth/v2/authorize?${q}`;
 }
 
 export async function exchangeCode(code: string, redirectUri: string): Promise<string> {
