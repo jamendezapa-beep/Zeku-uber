@@ -4,6 +4,7 @@ import { verifyUberSignature } from "@/lib/signature";
 import { acceptOrder, getOrder } from "@/lib/uber";
 import { saveOrder, updateOrder } from "@/lib/orders";
 import { pushId, setJSON } from "@/lib/db";
+import { getRestaurant, saveRestaurant, setRestaurantActive } from "@/lib/restaurants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,6 +65,11 @@ export async function POST(req: NextRequest) {
         delivery: state,
         ...(state === "COMPLETED" || state === "DELIVERED" ? { status: "DELIVERED" as const } : {}),
       });
+    } else if (type === "store.provisioned" && event.store_id) {
+      const prev = await getRestaurant(event.store_id);
+      await saveRestaurant({ store_id: event.store_id, name: prev?.name ?? event.store_id, address: prev?.address, active: true });
+    } else if (type === "store.deprovisioned" && event.store_id) {
+      await setRestaurantActive(event.store_id, false);
     } else if (type.startsWith("eats.report")) {
       await setJSON(`report:${eventId}`, { received_at: new Date().toISOString(), event });
       await pushId("reports", eventId, 100);

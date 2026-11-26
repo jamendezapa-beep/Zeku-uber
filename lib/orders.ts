@@ -48,5 +48,7 @@ export function summarize(o: OrderRecord) {
     received_at: o.received_at,
     error: o.error,
     delivery: o.delivery ?? "",
+    store_id: d.store?.id ?? "",
+    store_name: d.store?.name ?? "",
   };
 }

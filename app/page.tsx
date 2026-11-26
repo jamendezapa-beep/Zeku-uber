@@ -12,6 +12,7 @@ type Order = {
   received_at: string;
   error?: string;
   delivery?: string;
+  store_name?: string;
 };
 
 const card: React.CSSProperties = { background: "#181b22", borderRadius: 12, padding: 16, marginBottom: 16 };
@@ -52,6 +53,9 @@ export default function Panel() {
   const [store, setStore] = useState<any>(null);
   const [reports, setReports] = useState<any[]>([]);
   const [events, setEvents] = useState<any[] | null>(null);
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [sel, setSel] = useState("");
+  const qs = sel ? `?store=${encodeURIComponent(sel)}` : "";
   const today = new Date().toISOString().slice(0, 10);
   const [range, setRange] = useState({ start: today, end: today });
 
@@ -70,6 +74,18 @@ export default function Panel() {
       setOrders((await api("/api/admin/orders")).orders);
     } catch {}
   }, []);
+
+  const loadRestaurants = useCallback(async () => {
+    try {
+      const list = (await api("/api/admin/restaurants")).restaurants;
+      setRestaurants(list);
+      setSel((cur) => cur || list.find((r: any) => r.active)?.store_id || "");
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadRestaurants();
+  }, [loadRestaurants]);
 
   useEffect(() => {
     loadOrders();
@@ -101,14 +117,61 @@ export default function Panel() {
       </section>
 
       <section style={card}>
+        <h2 style={{ fontSize: 18, marginTop: 0 }}>Restaurantes</h2>
+        <p style={{ color: "#aaa", marginTop: 0 }}>
+          Cada restaurante se conecta solo en <code>/conectar</code>, iniciando sesión con su cuenta de Uber Eats.
+        </p>
+        <a href="/conectar" style={{ ...btn("#000"), border: "1px solid #444", display: "inline-block", textDecoration: "none" }}>
+          + Conectar restaurante
+        </a>
+        <button style={btn("#444")} onClick={loadRestaurants}>Actualizar</button>
+        {restaurants.length === 0 && <p style={{ color: "#aaa" }}>Todavía no hay restaurantes conectados.</p>}
+        {restaurants.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <label>
+              Operar sobre:{" "}
+              <select value={sel} onChange={(e) => setSel(e.target.value)} style={{ fontSize: 15, padding: 6 }}>
+                {restaurants.map((r) => (
+                  <option key={r.store_id} value={r.store_id}>
+                    {r.name}
+                    {r.active ? "" : " (desactivado)"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {restaurants.map((r) => (
+              <div key={r.store_id} style={{ fontSize: 14, marginTop: 8 }}>
+                {r.active ? "🟢" : "⚪"} {r.name}
+                {r.address && <span style={{ color: "#aaa" }}> · {r.address}</span>}
+                {r.active && r.connected_at && (
+                  <button
+                    style={{ ...btn("#333"), padding: "4px 8px", fontSize: 12, marginTop: 0, marginLeft: 8 }}
+                    onClick={() =>
+                      confirm(`¿Desconectar ${r.name} de Zeku? Dejará de recibir sus pedidos.`) &&
+                      run("Desconectando", async () => {
+                        await api("/api/admin/restaurants", { method: "POST", body: JSON.stringify({ store_id: r.store_id, action: "disable" }) });
+                        await loadRestaurants();
+                      })
+                    }
+                  >
+                    Desconectar
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section style={card}>
         <h2 style={{ fontSize: 18, marginTop: 0 }}>Tienda</h2>
-        <button style={btn("#444")} onClick={() => run("Consultando estado", async () => setStore(await api("/api/admin/store")))}>
+        <button style={btn("#444")} onClick={() => run("Consultando estado", async () => setStore(await api(`/api/admin/store${qs}`)))}>
           Ver estado
         </button>
-        <button style={btn("#17a34a")} onClick={() => run("Abriendo", () => api("/api/admin/store", { method: "POST", body: JSON.stringify({ status: "ONLINE" }) }))}>
+        <button style={btn("#17a34a")} onClick={() => run("Abriendo", () => api("/api/admin/store", { method: "POST", body: JSON.stringify({ status: "ONLINE", store: sel || undefined }) }))}>
           Abrir
         </button>
-        <button style={btn("#d97706")} onClick={() => run("Pausando 30 min", () => api("/api/admin/store", { method: "POST", body: JSON.stringify({ status: "PAUSED", minutes: 30 }) }))}>
+        <button style={btn("#d97706")} onClick={() => run("Pausando 30 min", () => api("/api/admin/store", { method: "POST", body: JSON.stringify({ status: "PAUSED", minutes: 30, store: sel || undefined }) }))}>
           Pausar 30 min
         </button>
         <button style={btn("#6d28d9")} onClick={() => run("Buscando tiendas", async () => setStore(await api("/api/admin/stores")))}>
@@ -120,7 +183,7 @@ export default function Panel() {
       <section style={card}>
         <h2 style={{ fontSize: 18, marginTop: 0 }}>Menú</h2>
         <p style={{ color: "#aaa", marginTop: 0 }}>Sube el menú de <code>data/menu.json</code> a Uber (reemplaza el actual).</p>
-        <button style={btn("#3b5bdb")} onClick={() => confirm("¿Reemplazar el menú en Uber Eats?") && run("Subiendo menú", () => api("/api/admin/menu", { method: "POST" }))}>
+        <button style={btn("#3b5bdb")} onClick={() => confirm("¿Reemplazar el menú en Uber Eats?") && run("Subiendo menú", () => api("/api/admin/menu", { method: "POST", body: JSON.stringify({ store: sel || undefined }) }))}>
           Sincronizar menú
         </button>
       </section>
@@ -134,7 +197,7 @@ export default function Panel() {
             <strong>#{o.shortId}</strong>{" "}
             <span style={{ color: STATUS_COLOR[o.status] ?? "#aaa" }}>{o.status}</span>
             <div style={{ color: "#aaa", fontSize: 13 }}>
-              {new Date(o.received_at).toLocaleString("es-CL")} {o.customer && `· ${o.customer}`} {o.total !== "" && `· ${o.total}`}
+              {new Date(o.received_at).toLocaleString("es-CL")} {o.store_name && `· ${o.store_name} `}{o.customer && `· ${o.customer}`} {o.total !== "" && `· ${o.total}`}
             </div>
             <div>{o.items.join(", ")}</div>
             {o.delivery && <div style={{ color: "#aaa", fontSize: 13 }}>Repartidor: {o.delivery}</div>}
@@ -178,7 +241,7 @@ export default function Panel() {
         <label>Desde <input type="date" value={range.start} onChange={(e) => setRange({ ...range, start: e.target.value })} /></label>{" "}
         <label>Hasta <input type="date" value={range.end} onChange={(e) => setRange({ ...range, end: e.target.value })} /></label>
         <div>
-          <button style={btn("#3b5bdb")} onClick={() => run("Pidiendo reporte (llega en unos minutos)", () => api("/api/admin/reports", { method: "POST", body: JSON.stringify(range) }))}>
+          <button style={btn("#3b5bdb")} onClick={() => run("Pidiendo reporte (llega en unos minutos)", () => api("/api/admin/reports", { method: "POST", body: JSON.stringify({ ...range, store: sel || undefined }) }))}>
             Pedir reporte
           </button>
           <button style={btn("#444")} onClick={() => run("Cargando reportes", async () => setReports((await api("/api/admin/reports")).reports))}>

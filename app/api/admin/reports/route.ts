@@ -25,12 +25,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { type = "ORDERS_AND_ITEMS_REPORT", start, end } = await req.json().catch(() => ({}));
+  const { type = "ORDERS_AND_ITEMS_REPORT", start, end, store } = await req.json().catch(() => ({}));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start ?? "") || !/^\d{4}-\d{2}-\d{2}$/.test(end ?? "")) {
     return NextResponse.json({ error: "start y end deben ser AAAA-MM-DD" }, { status: 400 });
   }
   try {
-    return NextResponse.json(await requestReport(type, start, end));
+    return NextResponse.json(await requestReport(type, start, end, store ? [store] : undefined));
   } catch (e) {
     return fail(e);
   }
