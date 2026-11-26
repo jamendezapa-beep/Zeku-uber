@@ -4,6 +4,9 @@ export type OrderRecord = {
   id: string;
   status: "NEW" | "ACCEPTED" | "READY" | "DELIVERED" | "DENIED" | "CANCELLED" | "ERROR";
   delivery?: string; // estado del repartidor que informa Uber
+  accepted_at?: string;
+  ready_by?: string; // hora estimada de retiro
+  cancel_reason?: string;
   received_at: string;
   updated_at: string;
   detail?: any; // respuesta completa de GET /v2/eats/order/{id}
@@ -48,6 +51,9 @@ export function summarize(o: OrderRecord) {
     received_at: o.received_at,
     error: o.error,
     delivery: o.delivery ?? "",
+    accepted_at: o.accepted_at ?? "",
+    ready_by: o.ready_by ?? "",
+    cancel_reason: o.cancel_reason ?? "",
     store_id: d.store?.id ?? "",
     store_name: d.store?.name ?? "",
   };

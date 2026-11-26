@@ -101,8 +101,25 @@ function safeJSON(t: string) {
 // ---------- Pedidos ----------
 export const getOrder = (orderId: string) => uber("GET", `/v2/eats/order/${orderId}`);
 
-export const acceptOrder = (orderId: string) =>
-  uber("POST", `/v1/eats/orders/${orderId}/accept_pos_order`, { reason: "accepted" });
+/** Acepta el pedido. prepMinutes: minutos de preparación (Uber lo usa para la hora de retiro). */
+export const acceptOrder = (orderId: string, prepMinutes?: number) =>
+  uber("POST", `/v1/eats/orders/${orderId}/accept_pos_order`, {
+    reason: "accepted",
+    ...(prepMinutes && prepMinutes > 0 ? { pickup_time: Math.floor(Date.now() / 1000) + prepMinutes * 60 } : {}),
+  });
+
+export const CANCEL_REASONS = [
+  "OUT_OF_ITEMS",
+  "KITCHEN_CLOSED",
+  "CUSTOMER_CALLED_TO_CANCEL",
+  "RESTAURANT_TOO_BUSY",
+  "CANNOT_COMPLETE_CUSTOMER_NOTE",
+  "OTHER",
+] as const;
+
+/** Cancela un pedido ya aceptado. */
+export const cancelOrder = (orderId: string, reason: string, details?: string) =>
+  uber("POST", `/v1/eats/orders/${orderId}/cancel`, { reason, ...(details ? { details } : {}) });
 
 export const denyOrder = (orderId: string, explanation: string, code = "STORE_CLOSED") =>
   uber("POST", `/v1/eats/orders/${orderId}/deny_pos_order`, { reason: { explanation, code } });

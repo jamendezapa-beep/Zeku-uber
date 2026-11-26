@@ -13,6 +13,8 @@ type Order = {
   error?: string;
   delivery?: string;
   store_name?: string;
+  ready_by?: string;
+  cancel_reason?: string;
 };
 
 const card: React.CSSProperties = { background: "#181b22", borderRadius: 12, padding: 16, marginBottom: 16 };
@@ -26,6 +28,15 @@ const btn = (bg: string): React.CSSProperties => ({
   marginRight: 8,
   marginTop: 8,
 });
+const CANCEL_LABEL: Record<string, string> = {
+  OUT_OF_ITEMS: "Sin stock de productos",
+  KITCHEN_CLOSED: "Cocina cerrada",
+  CUSTOMER_CALLED_TO_CANCEL: "El cliente pidió cancelar",
+  RESTAURANT_TOO_BUSY: "Restaurante muy ocupado",
+  CANNOT_COMPLETE_CUSTOMER_NOTE: "No se puede cumplir la nota del cliente",
+  OTHER: "Otro motivo",
+};
+
 const STATUS_COLOR: Record<string, string> = {
   NEW: "#f5a524",
   ACCEPTED: "#17c964",
@@ -53,6 +64,9 @@ export default function Panel() {
   const [store, setStore] = useState<any>(null);
   const [reports, setReports] = useState<any[]>([]);
   const [events, setEvents] = useState<any[] | null>(null);
+  const [prep, setPrep] = useState(20);
+  const [cancelReason, setCancelReason] = useState<Record<string, string>>({});
+  const [now, setNow] = useState(Date.now());
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [sel, setSel] = useState("");
   const qs = sel ? `?store=${encodeURIComponent(sel)}` : "";
@@ -86,6 +100,11 @@ export default function Panel() {
   useEffect(() => {
     loadRestaurants();
   }, [loadRestaurants]);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     loadOrders();
@@ -192,33 +211,91 @@ export default function Panel() {
         <h2 style={{ fontSize: 18, marginTop: 0 }}>Pedidos</h2>
         <button style={btn("#444")} onClick={loadOrders}>Actualizar</button>
         {orders.length === 0 && <p style={{ color: "#aaa" }}>Aún no llegan pedidos.</p>}
-        {orders.map((o) => (
-          <div key={o.id} style={{ borderTop: "1px solid #2a2e38", paddingTop: 12, marginTop: 12 }}>
-            <strong>#{o.shortId}</strong>{" "}
-            <span style={{ color: STATUS_COLOR[o.status] ?? "#aaa" }}>{o.status}</span>
-            <div style={{ color: "#aaa", fontSize: 13 }}>
-              {new Date(o.received_at).toLocaleString("es-CL")} {o.store_name && `· ${o.store_name} `}{o.customer && `· ${o.customer}`} {o.total !== "" && `· ${o.total}`}
+        <div style={{ marginTop: 8, fontSize: 14 }}>
+          Tiempo de preparación al aceptar:{" "}
+          <select value={prep} onChange={(e) => setPrep(Number(e.target.value))} style={{ fontSize: 15, padding: 4 }}>
+            {[10, 15, 20, 25, 30, 40, 45, 60].map((m) => (
+              <option key={m} value={m}>
+                {m} min
+              </option>
+            ))}
+          </select>
+        </div>
+        {orders.map((o) => {
+          const act = (label: string, body: object) =>
+            run(label, async () => {
+              await api(`/api/admin/orders/${o.id}`, { method: "POST", body: JSON.stringify(body) });
+              await loadOrders();
+            });
+          const live = o.status === "NEW" || o.status === "ACCEPTED" || o.status === "READY" || o.status === "ERROR";
+          const mins = Math.floor((now - new Date(o.received_at).getTime()) / 60000);
+          const left = o.ready_by ? Math.round((new Date(o.ready_by).getTime() - now) / 60000) : null;
+          return (
+            <div key={o.id} style={{ borderTop: "1px solid #2a2e38", paddingTop: 12, marginTop: 12 }}>
+              <strong>#{o.shortId}</strong>{" "}
+              <span style={{ color: STATUS_COLOR[o.status] ?? "#aaa" }}>{o.status}</span>
+              {live && (
+                <span style={{ marginLeft: 8, fontSize: 14, color: mins >= 20 ? "#f5a524" : "#aaa" }}>⏱ hace {mins} min</span>
+              )}
+              <div style={{ color: "#aaa", fontSize: 13 }}>
+                {new Date(o.received_at).toLocaleString("es-CL")} {o.store_name && `· ${o.store_name} `}
+                {o.customer && `· ${o.customer}`} {o.total !== "" && `· ${o.total}`}
+              </div>
+              <div>{o.items.join(", ")}</div>
+              {o.ready_by && (o.status === "ACCEPTED" || o.status === "READY") && (
+                <div style={{ fontSize: 14, color: left !== null && left < 0 ? "#f31260" : "#7aa2ff" }}>
+                  Retiro estimado: {new Date(o.ready_by).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
+                  {left !== null && (left >= 0 ? ` (faltan ${left} min)` : ` (atrasado ${-left} min)`)}
+                </div>
+              )}
+              {o.delivery && <div style={{ color: "#aaa", fontSize: 13 }}>Repartidor: {o.delivery}</div>}
+              {o.cancel_reason && <div style={{ color: "#aaa", fontSize: 13 }}>Motivo: {CANCEL_LABEL[o.cancel_reason] ?? o.cancel_reason}</div>}
+              {o.error && <div style={{ color: "#f31260", fontSize: 13 }}>{o.error}</div>}
+
+              {(o.status === "NEW" || o.status === "ERROR") && (
+                <>
+                  <button style={btn("#17a34a")} onClick={() => act("Aceptando", { action: "accept", minutes: prep })}>
+                    Aceptar ({prep} min)
+                  </button>
+                  <button style={btn("#dc2626")} onClick={() => confirm("¿Rechazar este pedido?") && act("Rechazando", { action: "deny" })}>
+                    Rechazar
+                  </button>
+                </>
+              )}
+              {o.status === "ACCEPTED" && (
+                <button style={btn("#2563eb")} onClick={() => act("Marcando listo", { action: "ready" })}>
+                  Listo para retiro
+                </button>
+              )}
+              {(o.status === "ACCEPTED" || o.status === "READY") && (
+                <div style={{ marginTop: 8 }}>
+                  <select
+                    value={cancelReason[o.id] ?? ""}
+                    onChange={(e) => setCancelReason({ ...cancelReason, [o.id]: e.target.value })}
+                    style={{ fontSize: 14, padding: 4 }}
+                  >
+                    <option value="">Motivo para cancelar…</option>
+                    {Object.entries(CANCEL_LABEL).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    style={{ ...btn("#7f1d1d"), opacity: cancelReason[o.id] ? 1 : 0.5 }}
+                    disabled={!cancelReason[o.id]}
+                    onClick={() =>
+                      confirm(`¿Cancelar el pedido #${o.shortId}? El cliente será notificado y no se puede deshacer.`) &&
+                      act("Cancelando", { action: "cancel", reason: cancelReason[o.id] })
+                    }
+                  >
+                    Cancelar pedido
+                  </button>
+                </div>
+              )}
             </div>
-            <div>{o.items.join(", ")}</div>
-            {o.delivery && <div style={{ color: "#aaa", fontSize: 13 }}>Repartidor: {o.delivery}</div>}
-            {o.status === "ACCEPTED" && (
-              <button style={btn("#2563eb")} onClick={() => run("Marcando listo", async () => { await api(`/api/admin/orders/${o.id}`, { method: "POST", body: JSON.stringify({ action: "ready" }) }); await loadOrders(); })}>
-                Listo para retiro
-              </button>
-            )}
-            {o.error && <div style={{ color: "#f31260", fontSize: 13 }}>{o.error}</div>}
-            {(o.status === "NEW" || o.status === "ERROR") && (
-              <>
-                <button style={btn("#17a34a")} onClick={() => run("Aceptando", async () => { await api(`/api/admin/orders/${o.id}`, { method: "POST", body: JSON.stringify({ action: "accept" }) }); await loadOrders(); })}>
-                  Aceptar
-                </button>
-                <button style={btn("#dc2626")} onClick={() => run("Rechazando", async () => { await api(`/api/admin/orders/${o.id}`, { method: "POST", body: JSON.stringify({ action: "deny" }) }); await loadOrders(); })}>
-                  Rechazar
-                </button>
-              </>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </section>
 
       <section style={card}>
