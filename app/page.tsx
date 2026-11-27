@@ -356,7 +356,7 @@ export default function Panel() {
             ["delivery_stores", "1. Listar tiendas (GET /v1/delivery/stores)"],
             ["delivery_store", "2. Ver tienda (GET /v1/delivery/store/{id})"],
             ["get_pos_data", "3. Ver integración (GET pos_data)"],
-            ["post_pos_data", "4. Activar integración (POST pos_data)"],
+            ["post_pos_data", "4. Activar integración (POST pos_data) → abre /conectar"],
             ["patch_pos_data", "4b. Actualizar integración (PATCH pos_data)"],
             ["upload_menu", "5. Subir menú (PUT menus)"],
             ["item_sold_out", "6. Marcar producto agotado"],
@@ -367,7 +367,11 @@ export default function Panel() {
           <div key={k}>
             <button
               style={{ ...btn("#334155"), width: "100%", textAlign: "left" }}
-              onClick={() => validate(k, label, k === "item_price" ? { price: 5990 } : {})}
+              onClick={() =>
+                k === "post_pos_data"
+                  ? (window.location.href = "/conectar")
+                  : validate(k, label, k === "item_price" ? { price: 5990 } : {})
+              }
             >
               {checks[k] ?? "⬜"} {label}
             </button>
