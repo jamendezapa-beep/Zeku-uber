@@ -1,6 +1,6 @@
 // POST { action: "accept", minutes? } | { action: "ready" } | { action: "deny", reason? } | { action: "cancel", reason, details? }
 import { NextRequest, NextResponse } from "next/server";
-import { acceptOrder, cancelOrder, CANCEL_REASONS, denyOrder, markOrderReady } from "@/lib/uber";
+import { acceptOrder, cancelOrder, CANCEL_REASONS, DENY_REASONS, denyOrder, markOrderReady } from "@/lib/uber";
 import { updateOrder } from "@/lib/orders";
 import { fail } from "@/lib/http";
 
@@ -33,8 +33,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json(await updateOrder(id, { status: "READY", error: undefined }));
     }
     if (body.action === "deny") {
-      await denyOrder(id, body.reason || "No podemos preparar el pedido en este momento");
-      return NextResponse.json(await updateOrder(id, { status: "DENIED", error: undefined }));
+      const type = DENY_REASONS.includes(body.reason) ? body.reason : "STORE_CLOSED";
+      await denyOrder(id, body.info || "No podemos preparar el pedido en este momento", type);
+      return NextResponse.json(await updateOrder(id, { status: "DENIED", error: undefined, cancel_reason: type }));
     }
     return NextResponse.json({ error: "action debe ser accept, ready, cancel o deny" }, { status: 400 });
   } catch (e) {

@@ -67,6 +67,26 @@ export default function Panel() {
   const [prep, setPrep] = useState(20);
   const [cancelReason, setCancelReason] = useState<Record<string, string>>({});
   const [now, setNow] = useState(Date.now());
+  const [checks, setChecks] = useState<Record<string, string>>({});
+  const [itemId, setItemId] = useState("");
+  const [lastResult, setLastResult] = useState("");
+  const [denyReason, setDenyReason] = useState("STORE_CLOSED");
+  const validate = (key: string, label: string, extra: object = {}) =>
+    run(label, async () => {
+      setChecks((c) => ({ ...c, [key]: "…" }));
+      try {
+        const r = await api("/api/admin/validation", {
+          method: "POST",
+          body: JSON.stringify({ action: key, store: sel || undefined, item: itemId || undefined, ...extra }),
+        });
+        setChecks((c) => ({ ...c, [key]: "✅" }));
+        setLastResult(JSON.stringify(r.result, null, 2).slice(0, 1500));
+      } catch (e: any) {
+        setChecks((c) => ({ ...c, [key]: "❌" }));
+        setLastResult(String(e.message));
+        throw e;
+      }
+    });
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [sel, setSel] = useState("");
   const qs = sel ? `?store=${encodeURIComponent(sel)}` : "";
@@ -212,6 +232,16 @@ export default function Panel() {
         <button style={btn("#444")} onClick={loadOrders}>Actualizar</button>
         {orders.length === 0 && <p style={{ color: "#aaa" }}>Aún no llegan pedidos.</p>}
         <div style={{ marginTop: 8, fontSize: 14 }}>
+          Motivo si rechazas:{" "}
+          <select value={denyReason} onChange={(e) => setDenyReason(e.target.value)} style={{ fontSize: 15, padding: 4, marginRight: 8 }}>
+            <option value="STORE_CLOSED">Tienda cerrada</option>
+            <option value="RESTAURANT_TOO_BUSY">Muy ocupados</option>
+            <option value="ITEM_ISSUE">Problema con un producto</option>
+            <option value="KITCHEN_CLOSED">Cocina cerrada</option>
+            <option value="CAPACITY">Sin capacidad</option>
+            <option value="OTHER">Otro</option>
+          </select>
+          <br />
           Tiempo de preparación al aceptar:{" "}
           <select value={prep} onChange={(e) => setPrep(Number(e.target.value))} style={{ fontSize: 15, padding: 4 }}>
             {[10, 15, 20, 25, 30, 40, 45, 60].map((m) => (
@@ -257,7 +287,7 @@ export default function Panel() {
                   <button style={btn("#17a34a")} onClick={() => act("Aceptando", { action: "accept", minutes: prep })}>
                     Aceptar ({prep} min)
                   </button>
-                  <button style={btn("#dc2626")} onClick={() => confirm("¿Rechazar este pedido?") && act("Rechazando", { action: "deny" })}>
+                  <button style={btn("#dc2626")} onClick={() => confirm("¿Rechazar este pedido?") && act("Rechazando", { action: "deny", reason: denyReason })}>
                     Rechazar
                   </button>
                 </>
@@ -296,6 +326,51 @@ export default function Panel() {
             </div>
           );
         })}
+      </section>
+
+      <section style={card}>
+        <h2 style={{ fontSize: 18, marginTop: 0 }}>Validación de Uber</h2>
+        <p style={{ color: "#aaa", marginTop: 0 }}>
+          Toca cada botón una vez, en orden. Uber revisa que Zeku haya usado cada endpoint con la tienda de prueba.
+        </p>
+        <label style={{ fontSize: 14 }}>
+          ID del producto (vacío = el primero de data/menu.json):{" "}
+          <input value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ fontSize: 14, padding: 4, width: 160 }} />
+        </label>
+        {(
+          [
+            ["delivery_stores", "1. Listar tiendas (GET /v1/delivery/stores)"],
+            ["delivery_store", "2. Ver tienda (GET /v1/delivery/store/{id})"],
+            ["get_pos_data", "3. Ver integración (GET pos_data)"],
+            ["post_pos_data", "4. Activar integración (POST pos_data)"],
+            ["upload_menu", "5. Subir menú (PUT menus)"],
+            ["item_sold_out", "6. Marcar producto agotado"],
+            ["item_available", "7. Volver a disponible"],
+            ["item_price", "8. Cambiar precio del producto"],
+          ] as [string, string][]
+        ).map(([k, label]) => (
+          <div key={k}>
+            <button
+              style={{ ...btn("#334155"), width: "100%", textAlign: "left" }}
+              onClick={() => validate(k, label, k === "item_price" ? { price: 5990 } : {})}
+            >
+              {checks[k] ?? "⬜"} {label}
+            </button>
+          </div>
+        ))}
+        <div style={{ marginTop: 12, fontSize: 13, color: "#aaa" }}>
+          Al final (opcional, se puede revertir con el paso 4):
+        </div>
+        <button
+          style={{ ...btn("#7f1d1d"), width: "100%", textAlign: "left" }}
+          onClick={() =>
+            confirm("Esto quita la integración de la tienda. Después vuelve a tocar el paso 4 para reactivarla. ¿Seguir?") &&
+            validate("delete_pos_data", "Quitar integración")
+          }
+        >
+          {checks.delete_pos_data ?? "⬜"} 9. Quitar integración (DELETE pos_data) y luego repetir el 4
+        </button>
+        {lastResult && <pre style={{ whiteSpace: "pre-wrap", fontSize: 12, maxHeight: 240, overflow: "auto" }}>{lastResult}</pre>}
       </section>
 
       <section style={card}>

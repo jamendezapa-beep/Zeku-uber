@@ -121,8 +121,19 @@ export const CANCEL_REASONS = [
 export const cancelOrder = (orderId: string, reason: string, details?: string) =>
   uber("POST", `/v1/eats/orders/${orderId}/cancel`, { reason, ...(details ? { details } : {}) });
 
-export const denyOrder = (orderId: string, explanation: string, code = "STORE_CLOSED") =>
-  uber("POST", `/v1/eats/orders/${orderId}/deny_pos_order`, { reason: { explanation, code } });
+export const DENY_REASONS = [
+  "ITEM_ISSUE",
+  "KITCHEN_CLOSED",
+  "CUSTOMER_CALLED_TO_CANCEL",
+  "RESTAURANT_TOO_BUSY",
+  "STORE_CLOSED",
+  "CAPACITY",
+  "OTHER",
+] as const;
+
+/** Rechaza un pedido nuevo (endpoint exigido por Uber para la validación). */
+export const denyOrder = (orderId: string, info: string, type = "STORE_CLOSED") =>
+  uber("POST", `/v1/delivery/order/${orderId}/deny`, { deny_reason: { type, info } });
 
 /** Avisa a Uber que el pedido está preparado, para despachar al repartidor. */
 export const markOrderReady = (orderId: string) => uber("POST", `/v1/delivery/order/${orderId}/ready`, {});
@@ -219,3 +230,61 @@ export const activateStore = (token: string, store: string) =>
 
 export const deactivateStore = (store: string) =>
   uber("PATCH", `/v1/eats/stores/${store}/pos_data`, { integration_enabled: false });
+
+// ---------- Endpoints exigidos por Uber para la validación ----------
+
+/** GET /v1/delivery/stores: tiendas autorizadas a la app. */
+export const deliveryStores = () => uber("GET", `/v1/delivery/stores`);
+
+/** GET /v1/delivery/store/{id}: detalle de una tienda. */
+export const deliveryStore = (store?: string | null) => uber("GET", `/v1/delivery/store/${storeId(store)}`);
+
+/** GET /v1/eats/stores/{id}/pos_data: estado de la integración en la tienda. */
+export const getPosData = (store?: string | null) => uber("GET", `/v1/eats/stores/${storeId(store)}/pos_data`);
+
+let provToken: { token: string; exp: number } | null = null;
+/** Token para activar/desactivar tiendas. Se intenta con eats.pos_provisioning; si Uber no lo
+ *  entrega por client_credentials, se usa el token normal de la app. */
+async function provisioningToken(): Promise<string> {
+  if (provToken && provToken.exp > Date.now()) return provToken.token;
+  try {
+    const t = await requestToken("eats.pos_provisioning");
+    provToken = { token: t.access_token, exp: t.expires_at };
+    return t.access_token;
+  } catch {
+    const t = await requestToken();
+    provToken = { token: t.access_token, exp: t.expires_at };
+    return t.access_token;
+  }
+}
+
+/** POST /v1/eats/stores/{id}/pos_data: activa la integración en la tienda. */
+export const postPosData = async (store?: string | null) => {
+  const id = storeId(store);
+  return uberAsMerchant(await provisioningToken(), "POST", `/v1/eats/stores/${id}/pos_data`, {
+    pos_integration_enabled: true,
+    integrator_store_id: id,
+  });
+};
+
+/** DELETE /v1/eats/stores/{id}/pos_data: quita la integración (Uber envía store.deprovisioned). */
+export const deletePosData = async (store?: string | null) =>
+  uberAsMerchant(await provisioningToken(), "DELETE", `/v1/eats/stores/${storeId(store)}/pos_data`);
+
+/** POST /v2/eats/stores/{id}/menus/items/{item}: precio o disponibilidad de un producto. */
+export const updateItem = (itemId: string, body: unknown, store?: string | null) =>
+  uber("POST", `/v2/eats/stores/${storeId(store)}/menus/items/${encodeURIComponent(itemId)}`, body);
+
+export const setItemSoldOut = (itemId: string, soldOut: boolean, store?: string | null) =>
+  updateItem(
+    itemId,
+    {
+      suspension_info: soldOut
+        ? { suspension: { suspend_until: Math.floor(Date.now() / 1000) + 24 * 3600, reason: "Agotado" } }
+        : { suspension: { suspend_until: 0 } },
+    },
+    store,
+  );
+
+export const setItemPrice = (itemId: string, price: number, store?: string | null) =>
+  updateItem(itemId, { price_info: { price } }, store);

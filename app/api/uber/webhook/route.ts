@@ -1,7 +1,8 @@
 // URL a registrar en el Uber Developer Dashboard: https://TU-DOMINIO/api/uber/webhook
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUberSignature } from "@/lib/signature";
-import { acceptOrder, getOrder } from "@/lib/uber";
+import { acceptOrder, getOrder, uploadMenu } from "@/lib/uber";
+import menu from "@/data/menu.json";
 import { saveOrder, updateOrder } from "@/lib/orders";
 import { pushId, setJSON } from "@/lib/db";
 import { getRestaurant, saveRestaurant, setRestaurantActive } from "@/lib/restaurants";
@@ -70,6 +71,18 @@ export async function POST(req: NextRequest) {
       await saveRestaurant({ store_id: event.store_id, name: prev?.name ?? event.store_id, address: prev?.address, active: true });
     } else if (type === "store.deprovisioned" && event.store_id) {
       await setRestaurantActive(event.store_id, false);
+    } else if (type === "store.menu_refresh_request") {
+      // Uber pide reenviar el menú de la tienda.
+      const store = event.store_id ?? event.meta?.resource_id ?? null;
+      await uploadMenu(menu, store);
+    } else if (type === "store.status.changed") {
+      const store = event.store_id ?? event.meta?.resource_id;
+      if (store) {
+        await setJSON(`store-status:${store}`, {
+          status: event.meta?.status ?? event.status ?? event.store_status ?? "",
+          received_at: new Date().toISOString(),
+        });
+      }
     } else if (type.startsWith("eats.report")) {
       await setJSON(`report:${eventId}`, { received_at: new Date().toISOString(), event });
       await pushId("reports", eventId, 100);
