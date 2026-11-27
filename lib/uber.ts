@@ -224,7 +224,7 @@ export const merchantStores = (token: string) => uberAsMerchant(token, "GET", "/
 
 export const activateStore = (token: string, store: string) =>
   uberAsMerchant(token, "POST", `/v1/eats/stores/${store}/pos_data`, {
-    pos_integration_enabled: true,
+    is_order_manager: true,
     integrator_store_id: store,
   });
 
@@ -262,8 +262,19 @@ async function provisioningToken(): Promise<string> {
 export const postPosData = async (store?: string | null) => {
   const id = storeId(store);
   return uberAsMerchant(await provisioningToken(), "POST", `/v1/eats/stores/${id}/pos_data`, {
-    pos_integration_enabled: true,
+    is_order_manager: true,
     integrator_store_id: id,
+  });
+};
+
+/** PATCH /v1/eats/stores/{id}/pos_data: actualiza la integración (token de la app, scope eats.store). */
+export const patchPosData = (store?: string | null) => {
+  const id = storeId(store);
+  return uber("PATCH", `/v1/eats/stores/${id}/pos_data`, {
+    integration_enabled: true,
+    is_order_manager: true,
+    integrator_store_id: id,
+    store_configuration_data: JSON.stringify({ app: "zeku" }),
   });
 };
 

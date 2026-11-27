@@ -343,6 +343,7 @@ export default function Panel() {
             ["delivery_store", "2. Ver tienda (GET /v1/delivery/store/{id})"],
             ["get_pos_data", "3. Ver integración (GET pos_data)"],
             ["post_pos_data", "4. Activar integración (POST pos_data)"],
+            ["patch_pos_data", "4b. Actualizar integración (PATCH pos_data)"],
             ["upload_menu", "5. Subir menú (PUT menus)"],
             ["item_sold_out", "6. Marcar producto agotado"],
             ["item_available", "7. Volver a disponible"],

@@ -6,6 +6,7 @@ import {
   deliveryStore,
   deliveryStores,
   getPosData,
+  patchPosData,
   postPosData,
   setItemPrice,
   setItemSoldOut,
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
         break;
       case "post_pos_data":
         result = await postPosData(s);
+        break;
+      case "patch_pos_data":
+        result = await patchPosData(s);
         break;
       case "delete_pos_data":
         result = await deletePosData(s);
