@@ -1,10 +1,21 @@
 // POST { action: "accept", minutes? } | { action: "ready" } | { action: "deny", reason? } | { action: "cancel", reason, details? }
 import { NextRequest, NextResponse } from "next/server";
-import { acceptOrder, cancelOrder, CANCEL_REASONS, DENY_REASONS, denyOrder, markOrderReady } from "@/lib/uber";
+import { acceptOrder, cancelOrder, CANCEL_REASONS, DENY_REASONS, denyOrder, getOrder, markOrderReady } from "@/lib/uber";
 import { updateOrder } from "@/lib/orders";
 import { fail } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
+
+/** GET: estado actual del pedido según Uber (current_state). */
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  try {
+    const d: any = await getOrder(id);
+    return NextResponse.json({ id, current_state: d?.current_state ?? d?.state ?? d?.status ?? "desconocido" });
+  } catch (e) {
+    return fail(e);
+  }
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -282,6 +282,20 @@ export default function Panel() {
               {o.cancel_reason && <div style={{ color: "#aaa", fontSize: 13 }}>Motivo: {CANCEL_LABEL[o.cancel_reason] ?? o.cancel_reason}</div>}
               {o.error && <div style={{ color: "#f31260", fontSize: 13 }}>{o.error}</div>}
 
+              <button
+                style={{ ...btn("#333"), padding: "4px 8px", fontSize: 12 }}
+                onClick={async () => {
+                  setMsg("Consultando en Uber…");
+                  try {
+                    const r = await api(`/api/admin/orders/${o.id}`);
+                    setMsg(`Pedido #${o.shortId} según Uber: ${r.current_state}`);
+                  } catch (e: any) {
+                    setMsg(`No se pudo consultar: ${e.message}`);
+                  }
+                }}
+              >
+                Ver estado en Uber
+              </button>
               {(o.status === "NEW" || o.status === "ERROR") && (
                 <>
                   <button style={btn("#17a34a")} onClick={() => act("Aceptando", { action: "accept", minutes: prep })}>
