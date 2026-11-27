@@ -6,6 +6,7 @@ import {
   deliveryStore,
   deliveryStores,
   getPosData,
+  listStores,
   patchPosData,
   postPosData,
   setItemPrice,
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest) {
   try {
     let result: unknown;
     switch (action) {
+      case "eats_stores":
+        result = await listStores();
+        break;
       case "delivery_stores":
         result = await deliveryStores();
         break;

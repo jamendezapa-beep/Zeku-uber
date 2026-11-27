@@ -15,6 +15,7 @@ export async function GET() {
         type: e.event?.event_type ?? "",
         rejected: Boolean(e.rejected),
         reason: e.reason ?? "",
+        result: e.result ?? "",
       })),
     });
   } catch (e) {

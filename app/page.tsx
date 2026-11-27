@@ -353,42 +353,44 @@ export default function Panel() {
         </label>
         {(
           [
-            ["delivery_stores", "1. Listar tiendas (GET /v1/delivery/stores)"],
-            ["delivery_store", "2. Ver tienda (GET /v1/delivery/store/{id})"],
-            ["get_pos_data", "3. Ver integración (GET pos_data)"],
-            ["post_pos_data", "4. Activar integración (POST pos_data) → abre /conectar"],
-            ["patch_pos_data", "4b. Actualizar integración (PATCH pos_data)"],
-            ["upload_menu", "5. Subir menú (PUT menus)"],
-            ["item_sold_out", "6. Marcar producto agotado"],
-            ["item_available", "7. Volver a disponible"],
-            ["item_price", "8. Cambiar precio del producto"],
+            ["eats_stores", "1. Todas las tiendas (GET /v1/eats/stores)"],
+            ["delivery_stores", "2. Tiendas (GET /v1/delivery/stores)"],
+            ["delivery_store", "3. Detalle de tienda (GET /v1/delivery/store/{id})"],
+            ["get_pos_data", "4. Ver integración (GET pos_data)"],
+            ["patch_pos_data", "5. Actualizar integración (PATCH pos_data)"],
+            ["upload_menu", "6. Subir menú (PUT menus)"],
+            ["item_price", "7. Cambiar precio (POST menus/items)"],
+            ["item_sold_out", "8. Marcar agotado (POST menus/items)"],
+            ["item_available", "9. Volver a disponible (POST menus/items)"],
           ] as [string, string][]
         ).map(([k, label]) => (
           <div key={k}>
             <button
               style={{ ...btn("#334155"), width: "100%", textAlign: "left" }}
-              onClick={() =>
-                k === "post_pos_data"
-                  ? (window.location.href = "/conectar")
-                  : validate(k, label, k === "item_price" ? { price: 5990 } : {})
-              }
+              onClick={() => validate(k, label, k === "item_price" ? { price: 5990 } : {})}
             >
               {checks[k] ?? "⬜"} {label}
             </button>
           </div>
         ))}
         <div style={{ marginTop: 12, fontSize: 13, color: "#aaa" }}>
-          Al final (opcional, se puede revertir con el paso 4):
+          Ciclo de desactivación (hacer los dos, en orden):
         </div>
         <button
           style={{ ...btn("#7f1d1d"), width: "100%", textAlign: "left" }}
           onClick={() =>
-            confirm("Esto quita la integración de la tienda. Después vuelve a tocar el paso 4 para reactivarla. ¿Seguir?") &&
+            confirm("Esto quita la integración de la tienda. Justo después toca el paso 11 para reactivarla. ¿Seguir?") &&
             validate("delete_pos_data", "Quitar integración")
           }
         >
-          {checks.delete_pos_data ?? "⬜"} 9. Quitar integración (DELETE pos_data) y luego repetir el 4
+          {checks.delete_pos_data ?? "⬜"} 10. Quitar integración (DELETE pos_data)
         </button>
+        <a
+          href="/conectar"
+          style={{ ...btn("#14532d"), width: "100%", textAlign: "left", display: "block", textDecoration: "none", boxSizing: "border-box" }}
+        >
+          ➡️ 11. Reactivar desde /conectar (GET /v1/eats/stores + POST pos_data)
+        </a>
         {lastResult && <pre style={{ whiteSpace: "pre-wrap", fontSize: 12, maxHeight: 240, overflow: "auto" }}>{lastResult}</pre>}
       </section>
 
@@ -403,6 +405,7 @@ export default function Panel() {
           <div key={i} style={{ fontSize: 14, marginTop: 8 }}>
             {e.rejected ? "❌" : "✅"} {new Date(e.received_at).toLocaleString("es-CL")} · {e.type || "?"}
             {e.rejected && <span style={{ color: "#f31260" }}> · rechazado: {e.reason}</span>}
+            {e.result && <div style={{ color: e.result.startsWith("error") ? "#f31260" : "#aaa", fontSize: 12, marginLeft: 22 }}>{e.result}</div>}
           </div>
         ))}
       </section>

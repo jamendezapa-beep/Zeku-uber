@@ -144,7 +144,11 @@ export const uploadMenu = (menu: unknown, store?: string | null) =>
 export const fetchMenu = (store?: string | null) => uber("GET", `/v2/eats/stores/${storeId(store)}/menus`);
 
 // ---------- Tiendas ligadas a la app ----------
+/** GET /v1/eats/stores: todas las tiendas autorizadas a la app (token de la app). */
 export const listStores = () => uber("GET", `/v1/eats/stores`);
+
+/** GET /v1/eats/stores/{id}: detalle de una tienda. */
+export const getStoreDetails = (store?: string | null) => uber("GET", `/v1/eats/stores/${storeId(store)}`);
 
 // ---------- Estado de tienda ----------
 export const getStoreStatus = (store?: string | null) => uber("GET", `/v1/eats/store/${storeId(store)}/status`);
