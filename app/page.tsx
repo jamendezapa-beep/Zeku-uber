@@ -68,6 +68,7 @@ export default function Panel() {
   const [cancelReason, setCancelReason] = useState<Record<string, string>>({});
   const [now, setNow] = useState(Date.now());
   const [checks, setChecks] = useState<Record<string, string>>({});
+  const [menuView, setMenuView] = useState<{ id: string; title: string; price?: number; soldOut: boolean }[] | null>(null);
   const [itemId, setItemId] = useState("");
   const [lastResult, setLastResult] = useState("");
   const [denyReason, setDenyReason] = useState("STORE_CLOSED");
@@ -225,6 +226,37 @@ export default function Panel() {
         <button style={btn("#3b5bdb")} onClick={() => confirm("¿Reemplazar el menú en Uber Eats?") && run("Subiendo menú", () => api("/api/admin/menu", { method: "POST", body: JSON.stringify({ store: sel || undefined }) }))}>
           Sincronizar menú
         </button>
+        <button
+          style={btn("#444")}
+          onClick={() =>
+            run("Leyendo menú en Uber", async () => {
+              const m = await api(`/api/admin/menu${qs}`);
+              const tr = (t: any) => t?.translations?.es ?? t?.translations?.es_es ?? Object.values(t?.translations ?? {})[0] ?? "";
+              setMenuView(
+                (m?.items ?? []).map((it: any) => {
+                  const until = Number(it?.suspension_info?.suspension?.suspend_until ?? 0);
+                  return {
+                    id: it.id,
+                    title: tr(it.title) || it.id,
+                    price: it?.price_info?.price,
+                    soldOut: until * 1000 > Date.now(),
+                  };
+                }),
+              );
+            })
+          }
+        >
+          Ver menú en Uber
+        </button>
+        {menuView && menuView.length === 0 && <p style={{ color: "#aaa" }}>Uber no tiene productos en el menú de esta tienda.</p>}
+        {menuView?.map((it) => (
+          <div key={it.id} style={{ fontSize: 14, marginTop: 6 }}>
+            {it.soldOut ? "🚫" : "✅"} {it.title}
+            {typeof it.price === "number" && <span style={{ color: "#aaa" }}> · ${it.price}</span>}
+            {it.soldOut && <span style={{ color: "#f5a524" }}> · agotado</span>}
+            <div style={{ color: "#666", fontSize: 11 }}>ID: {it.id}</div>
+          </div>
+        ))}
       </section>
 
       <section style={card}>
