@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 /** Procesa el evento después de responder 200 y guarda el resultado para verlo en el panel. */
 async function processEvent(type: string, event: any, eventId: string) {
   const resourceId: string | undefined = event.meta?.resource_id;
-  const storeId: string | undefined = event.store_id ?? (type.startsWith("store.") ? resourceId : undefined);
+  const storeId: string | undefined = type.startsWith("store.") ? extractStoreId(event) : undefined;
   let result = "recibido";
 
   try {
@@ -115,7 +115,8 @@ async function processEvent(type: string, event: any, eventId: string) {
       await uploadMenu(menu, storeId);
       result = "menú subido (PUT menus)";
     } else if (type === "store.status.changed" && storeId) {
-      let status = event.meta?.status ?? event.status ?? event.store_status ?? "";
+      let status =
+        event.meta?.status ?? event.meta?.store_status ?? event.status ?? event.store_status ?? event.data?.status ?? "";
       try {
         const s: any = await getStoreStatus(storeId);
         status = s?.status ?? status;
@@ -139,4 +140,28 @@ async function processEvent(type: string, event: any, eventId: string) {
     const rec = await getJSON<any>(`event:${eventId}`);
     if (rec) await setJSON(`event:${eventId}`, { ...rec, result }, EVENT_TTL);
   } catch {}
+}
+
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/** Busca el ID de la tienda en todos los lugares donde Uber puede enviarlo. */
+function extractStoreId(event: any): string | undefined {
+  const direct =
+    event.store_id ??
+    event.meta?.store_id ??
+    event.meta?.resource_id ??
+    event.resource_id ??
+    event.store?.id ??
+    event.store_uuid ??
+    event.data?.store_id;
+  if (typeof direct === "string" && direct) return direct;
+  // resource_href: https://api.uber.com/v1/eats/store(s)/{uuid}/...
+  const href: string = event.resource_href ?? event.meta?.resource_href ?? "";
+  const m = href.match(/\/stores?\/([0-9a-f-]{36})/i);
+  if (m) return m[1];
+  // Último recurso: el primer UUID que aparezca junto a la palabra "store" en el aviso.
+  const raw = JSON.stringify(event);
+  const near = raw.match(/store[^"]*"\s*:\s*"([0-9a-f-]{36})"/i);
+  if (near && UUID.test(near[1])) return near[1];
+  return process.env.UBER_STORE_ID || undefined;
 }

@@ -16,6 +16,7 @@ export async function GET() {
         rejected: Boolean(e.rejected),
         reason: e.reason ?? "",
         result: e.result ?? "",
+        raw: e.event ? JSON.stringify(e.event, null, 2).slice(0, 2000) : "",
       })),
     });
   } catch (e) {

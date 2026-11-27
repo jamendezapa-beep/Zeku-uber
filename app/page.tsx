@@ -68,6 +68,7 @@ export default function Panel() {
   const [cancelReason, setCancelReason] = useState<Record<string, string>>({});
   const [now, setNow] = useState(Date.now());
   const [checks, setChecks] = useState<Record<string, string>>({});
+  const [openEvent, setOpenEvent] = useState<number | null>(null);
   const [menuView, setMenuView] = useState<{ id: string; title: string; price?: number; soldOut: boolean }[] | null>(null);
   const [itemId, setItemId] = useState("");
   const [lastResult, setLastResult] = useState("");
@@ -428,16 +429,23 @@ export default function Panel() {
 
       <section style={card}>
         <h2 style={{ fontSize: 18, marginTop: 0 }}>Avisos de Uber</h2>
-        <p style={{ color: "#aaa", marginTop: 0 }}>Todo lo que Uber ha enviado a Zeku, aunque haya sido rechazado.</p>
+        <p style={{ color: "#aaa", marginTop: 0 }}>Todo lo que Uber ha enviado a Zeku, aunque haya sido rechazado. Toca un aviso para ver su contenido.</p>
         <button style={btn("#444")} onClick={() => run("Cargando avisos", async () => setEvents((await api("/api/admin/events")).events))}>
           Ver avisos
         </button>
         {events && events.length === 0 && <p style={{ color: "#aaa" }}>Uber todavía no ha enviado nada a Zeku.</p>}
         {events?.map((e, i) => (
-          <div key={i} style={{ fontSize: 14, marginTop: 8 }}>
+          <div
+            key={i}
+            style={{ fontSize: 14, marginTop: 8, cursor: "pointer" }}
+            onClick={() => setOpenEvent(openEvent === i ? null : i)}
+          >
             {e.rejected ? "❌" : "✅"} {new Date(e.received_at).toLocaleString("es-CL")} · {e.type || "?"}
             {e.rejected && <span style={{ color: "#f31260" }}> · rechazado: {e.reason}</span>}
             {e.result && <div style={{ color: e.result.startsWith("error") ? "#f31260" : "#aaa", fontSize: 12, marginLeft: 22 }}>{e.result}</div>}
+            {openEvent === i && e.raw && (
+              <pre style={{ whiteSpace: "pre-wrap", fontSize: 11, background: "#0f1115", padding: 8, borderRadius: 6 }}>{e.raw}</pre>
+            )}
           </div>
         ))}
       </section>
